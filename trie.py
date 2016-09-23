@@ -62,7 +62,26 @@ class Trie:
         self.items_number += 1
 
     def delete(self, word):
-        pass
+        """
+        :param word: the word to delete
+        :return: if the word is in the Trie, returns the word itself, else returns None
+        """
+        current = self.root
+        length = len(word)
+        n = 0
+        for letter in word:
+            n += 1
+            if length == n:
+                if current.get(letter + "_end", None) is not None:
+                    current[letter] = current.pop(letter + "_end", {})
+                    self.items_number -= 1
+                    return word
+                else:
+                    return None
+            else:
+                current = current.get(letter)
+                if current is None:
+                    return None
 
     def __repr__(self):
         pass
@@ -77,4 +96,6 @@ if __name__ == '__main__':
     tr.put("security")
     print("first" in tr)
     print("none" in tr)
+    print(tr.get_all())
+    print(tr.delete("second"))
     print(tr.get_all())
