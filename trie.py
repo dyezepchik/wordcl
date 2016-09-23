@@ -28,16 +28,20 @@ class Trie:
         else:
             return None
 
-    def collect(self):
-        pass
-
     def get_all(self):
-        """Get all of the words in the trie"""
+        """Get all of the words in the Trie"""
         item_list = []
         self._get_all(self.root, "", item_list)
         return item_list
 
     def _get_all(self, root, pre, items):
+        """
+        recursively visit all the levels of the Trie
+        :param root:
+        :param pre:
+        :param items:
+        :return:
+        """
         if not root:
             return
         for key, node in root.items():
@@ -89,13 +93,13 @@ class Trie:
     def __str__(self):
         pass
 
+
 if __name__ == '__main__':
     tr = Trie()
-    tr.put("first")
-    tr.put("second")
-    tr.put("security")
-    print("first" in tr)
-    print("none" in tr)
+    for word in ("first", "second", "security", "name", "access", "butterfly", "serious", "seashells", "sea"):
+        tr.put(word)
+    for word in ("first", "second", "security", "name", "lksdfw", "car", "seashore"):
+        print(word in tr)
     print(tr.get_all())
     print(tr.delete("second"))
     print(tr.get_all())
