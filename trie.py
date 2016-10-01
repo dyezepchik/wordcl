@@ -49,7 +49,7 @@ class Trie:
                 items.append(pre + key[0])
             self._get_all(node, pre+key[0], items)
 
-    def size(self):
+    def __len__(self):
         return self.items_number
 
     def put(self, word):

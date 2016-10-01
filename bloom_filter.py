@@ -2,10 +2,10 @@
 """
 Requires the bitarray library: http://pypi.python.org/pypi/bitarray/
 
-    >>> from pybloom import BloomFilter
+    >>> from bloom_filter import BloomFilter
     >>> f = BloomFilter(capacity=10000, error_rate=0.001)
-    >>> for i in range_fn(0, f.capacity):
-    ...     _ = f.add(i)
+    >>> for i in range(f.capacity):
+    ...     _ = f.put(i)
     ...
     >>> 0 in f
     True
@@ -17,7 +17,6 @@ Requires the bitarray library: http://pypi.python.org/pypi/bitarray/
     True
 """
 
-from __future__ import absolute_import
 import math
 import hashlib
 from struct import unpack, pack
@@ -26,10 +25,6 @@ try:
     import bitarray
 except ImportError:
     raise ImportError('pybloom requires bitarray >= 0.3.4')
-
-
-def range_fn(*args):
-    return range(*args)
 
 
 def make_hashfuncs(num_slices, num_bits):
@@ -54,7 +49,7 @@ def make_hashfuncs(num_slices, num_bits):
     num_salts, extra = divmod(num_slices, len(fmt))
     if extra:
         num_salts += 1
-    salts = tuple(hashfn(hashfn(pack('I', i)).digest()) for i in range_fn(num_salts))
+    salts = tuple(hashfn(hashfn(pack('I', i)).digest()) for i in range(num_salts))
 
     def _make_hashfuncs(key):
         if isinstance(key, str):
@@ -75,7 +70,6 @@ def make_hashfuncs(num_slices, num_bits):
 
 
 class BloomFilter(object):
-    FILE_FMT = b'<dQQQQ'
 
     def __init__(self, capacity, error_rate=0.001):
         """Implements a space-efficient probabilistic data structure
@@ -90,7 +84,7 @@ class BloomFilter(object):
             elements greatly increases the chance of false positives.
 
         >>> b = BloomFilter(capacity=100000, error_rate=0.001)
-        >>> b.add("test")
+        >>> b.put("test")
         False
         >>> "test" in b
         True
@@ -107,38 +101,36 @@ class BloomFilter(object):
         # n ~= (k * m) * ((ln(2) ** 2) / abs(ln(P)))
         # m ~= n * abs(ln(P)) / (k * (ln(2) ** 2))
         num_slices = int(math.ceil(math.log(1.0 / error_rate, 2)))
-        bits_per_slice = int(math.ceil(
-            (capacity * abs(math.log(error_rate))) /
-            (num_slices * (math.log(2) ** 2))))
-        self._setup(error_rate, num_slices, bits_per_slice, capacity, 0)
-        self.bitarray = bitarray.bitarray(self.num_bits, endian='little')
-        self.bitarray.setall(False)
+        bits_per_slice = int(math.ceil((capacity * abs(math.log(error_rate))) /
+                                       (num_slices * (math.log(2) ** 2))))
 
-    def _setup(self, error_rate, num_slices, bits_per_slice, capacity, count):
         self.error_rate = error_rate
         self.num_slices = num_slices
         self.bits_per_slice = bits_per_slice
         self.capacity = capacity
         self.num_bits = num_slices * bits_per_slice
-        self.count = count
+        self.count = 0
         self.make_hashes = make_hashfuncs(self.num_slices, self.bits_per_slice)
+
+        self.bitarr = bitarray.bitarray(self.num_bits, endian='little')
+        self.bitarr.setall(False)
 
     def __contains__(self, key):
         """Tests a key's membership in this bloom filter.
 
         >>> b = BloomFilter(capacity=100)
-        >>> b.add("hello")
+        >>> b.put("hello")
         False
         >>> "hello" in b
         True
 
         """
         bits_per_slice = self.bits_per_slice
-        bitarray = self.bitarray
+        bit_array = self.bitarr
         hashes = self.make_hashes(key)
         offset = 0
         for k in hashes:
-            if not bitarray[offset + k]:
+            if not bit_array[offset + k]:
                 return False
             offset += bits_per_slice
         return True
@@ -147,20 +139,20 @@ class BloomFilter(object):
         """Return the number of keys stored by this bloom filter."""
         return self.count
 
-    def add(self, key, skip_check=False):
+    def put(self, key, skip_check=False):
         """ Adds a key to this bloom filter. If the key already exists in this
         filter it will return True. Otherwise False.
 
         >>> b = BloomFilter(capacity=100)
-        >>> b.add("hello")
+        >>> b.put("hello")
         False
-        >>> b.add("hello")
+        >>> b.put("hello")
         True
         >>> b.count
         1
 
         """
-        bitarray = self.bitarray
+        bit_array = self.bitarr
         bits_per_slice = self.bits_per_slice
         hashes = self.make_hashes(key)
         found_all_bits = True
@@ -168,9 +160,9 @@ class BloomFilter(object):
             raise IndexError("BloomFilter is at capacity")
         offset = 0
         for k in hashes:
-            if not skip_check and found_all_bits and not bitarray[offset + k]:
+            if not skip_check and found_all_bits and not bit_array[offset + k]:
                 found_all_bits = False
-            self.bitarray[offset + k] = True
+            self.bitarr[offset + k] = True
             offset += bits_per_slice
 
         if skip_check:
@@ -182,22 +174,8 @@ class BloomFilter(object):
         else:
             return True
 
-    def copy(self):
-        """Return a copy of this bloom filter.
-        """
-        new_filter = BloomFilter(self.capacity, self.error_rate)
-        new_filter.bitarray = self.bitarray.copy()
-        return new_filter
-
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d['make_hashes']
-        return d
-
-    def __setstate__(self, d):
-        self.__dict__.update(d)
-        self.make_hashes = make_hashfuncs(self.num_slices, self.bits_per_slice)
-
 
 if __name__ == "__main__":
-    pass
+    b = BloomFilter(capacity=600000, error_rate=0.001)
+    b.put("test")
+    print("test" in b)
